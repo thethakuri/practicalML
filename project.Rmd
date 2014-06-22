@@ -1,0 +1,69 @@
+### Course Project - Practical Machine Learning
+========================================================
+### Building a machine learning algorithm to predict activity quality from activity monitors.
+
+Human Activity Recognition - <b>HAR</b> - has emerged as a key research area in the last years and is gaining increasing attention by the pervasive computing research community, especially for the development of context-aware systems. Further details can be found <a href= http://groupware.les.inf.puc-rio.br/har>here</a>. <br>
+The data <a href= http://groupware.les.inf.puc-rio.br/har>they</a> have provided was collected from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. 
+
+```{r}
+library(caret);
+trainingData <- read.csv("~/Courses/Practical Machine Learning//pml-training.csv", na.strings=c("NA",""))
+testingData <- read.csv("~/Courses/Practical Machine Learning//pml-testing.csv")
+
+```
+The goal of this project is to predict the manner in which they did the exercise. The manner has been divided into following classes:
+```{r}
+levels(trainingData$classe)
+```
+<br>
+### Cleaning and setting the data:
+Removing columns with missing values:
+```{r warning=FALSE}
+#trainingData <- trainingData[,!sapply(data,function(x) any(is.na(x)))]
+trainingData <- trainingData[, which(colSums(is.na(trainingData)) == 0)]
+```
+Also, we remove any variables(columns) that doesn't seem relative(non-sensor data) to the prediction model:
+```{r}
+trainingData <- trainingData[, -grep("timestamp|X|user_name|new_window|num_window",names(trainingData))]
+```
+After removing the columns with missing values, we get following number of variables:
+```{r}
+names(trainingData)
+```
+The variable we are predicting is "<b>classe</b>".
+Now, we partition the data into training set(70%) and cross-validation set(30%).
+```{r}
+set.seed(1)
+inTrain <- createDataPartition(y=trainingData$classe, p=0.7, list=FALSE)
+training <- trainingData[inTrain, ]
+cv <- trainingData[-inTrain, ]
+```
+Feature density plot:
+```{r densityPlot, cache=TRUE, fig.width=10, fig.height=10}
+featurePlot(x=training[, -53], y=training$classe, plot="density", auto.key = list(columns = 5))
+```
+
+<br>
+### Building the prediction model:
+Rather than using the default training method(bootstrapping), we are using <i>cross-validation</i> method with 5 folds to train the data as it seems to be more efficient and fast.
+```{r trainData, cache=TRUE}
+tctrl <- trainControl(method="cv", number=5)
+modFit <- train(classe ~ ., data=training, method="rf", trControl=tctrl)
+```
+<br>
+Summary of our fitted model:
+```{r}
+modFit
+plot(modFit)
+```
+We can see from above that we have achieved accuracy of 100% using 5 fold Cross-Validated resampling with just 52 predictors.
+<br>
+### Prediction and errors:
+As for the prediction statistics on cross-validation set:
+```{r}
+prediction <- predict(modFit, newdata=cv)
+confusionMatrix(prediction, cv$classe)
+```
+With an accuracy of 97.7%, our <i><b>out-of-sample error</b> is about <b>2.3 %</b></i>
+<br>
+<br>
